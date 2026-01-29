@@ -1,0 +1,67 @@
+# Rust / Cargo
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Anchor
+.anchor/
+test-ledger/
+.program-*
+
+# Solana
+*.so
+*.keypair
+
+# Node
+node_modules/
+dist/
+build/
+.npm
+
+# TypeScript
+*.tsbuildinfo
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+test-results/
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Media (large files - use LFS or external hosting)
+media/videos/raw/*.mp4
+media/videos/raw/*.mov
+media/videos/edited/*.mp4
+
+# Documentation build
+badger/docs/.next/
+badger/docs/out/
+badger/docs/.mint/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+resources/
+chats/

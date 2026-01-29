@@ -1,0 +1,60 @@
+{
+  "name": "solana-security-reference",
+  "version": "1.0.0",
+  "description": "Comprehensive security reference repository featuring vulnerable-vs-secure Solana program examples",
+  "main": "index.js",
+  "scripts": {
+    "test": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.test.ts",
+    "test:signer-checks": "ts-mocha -p ./tsconfig.json -t 1000000 tests/signer-checks.test.ts",
+    "test:owner-checks": "ts-mocha -p ./tsconfig.json -t 1000000 tests/owner-checks.test.ts",
+    "test:arbitrary-cpi": "ts-mocha -p ./tsconfig.json -t 1000000 tests/arbitrary-cpi.test.ts",
+    "test:reinitialization": "ts-mocha -p ./tsconfig.json -t 1000000 tests/reinitialization-attacks.test.ts",
+    "test:type-cosplay": "ts-mocha -p ./tsconfig.json -t 1000000 tests/type-cosplay.test.ts",
+    "test:pda-sharing": "ts-mocha -p ./tsconfig.json -t 1000000 tests/pda-sharing.test.ts",
+    "build": "./scripts/build-all.sh",
+    "clean": "./scripts/clean.sh",
+    "format": "prettier --write .",
+    "lint": "eslint . --ext .ts"
+  },
+  "keywords": [
+    "solana",
+    "security",
+    "anchor",
+    "pinocchio",
+    "blockchain",
+    "smart-contracts",
+    "vulnerabilities",
+    "education"
+  ],
+  "author": "SuperteamNG",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/superteamng/solana-security-reference"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/spl-token": "^0.4.8",
+    "@solana/web3.js": "^1.95.2",
+    "@types/bn.js": "^5.1.5",
+    "@types/chai": "^4.3.16",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^20.14.9",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "chai": "^4.4.1",
+    "eslint": "^8.57.0",
+    "mocha": "^10.5.2",
+    "prettier": "^3.3.2",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "bn.js": "^5.2.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

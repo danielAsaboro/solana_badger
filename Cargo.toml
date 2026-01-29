@@ -1,0 +1,28 @@
+[workspace]
+members = [
+    "programs/signer-checks/vulnerable/anchor",
+    "programs/signer-checks/secure/anchor",
+    "programs/owner-checks/vulnerable/anchor",
+    "programs/owner-checks/secure/anchor",
+    "programs/arbitrary-cpi/vulnerable/anchor",
+    "programs/arbitrary-cpi/secure/anchor",
+    "programs/reinitialization-attacks/vulnerable/anchor",
+    "programs/reinitialization-attacks/secure/anchor",
+    "programs/type-cosplay/vulnerable/anchor",
+    "programs/type-cosplay/secure/anchor",
+    "programs/pda-sharing/vulnerable/anchor",
+    "programs/pda-sharing/secure/anchor",
+]
+resolver = "2"
+
+[workspace.dependencies]
+anchor-lang = "0.32.1"
+anchor-spl = "0.32.1"
+solana-program = "3.0"
+spl-token = { version = "8.0.0", features = ["no-entrypoint"] }
+spl-associated-token-account = { version = "7.0.0", features = ["no-entrypoint"] }
+
+[profile.release]
+overflow-checks = true
+
+
