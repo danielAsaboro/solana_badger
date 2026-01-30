@@ -1,24 +1,28 @@
 #![no_std]
 
 use pinocchio::{
-    account_info::AccountInfo,
     entrypoint,
-    msg,
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    AccountView,
+    Address,
     ProgramResult,
 };
+use solana_program_error::ProgramError;
 
 pub mod state;
-use state::{Admin, User, discriminators};
+use state::{Admin, User};
 
-const ID: Pubkey = pinocchio::pubkey!("SecuTypePino1111111111111111111111111111");
+const ID: Address = Address::new_from_array([
+    0x53, 0x65, 0x63, 0x75, 0x54, 0x79, 0x70, 0x65,
+    0x50, 0x69, 0x6e, 0x6f, 0x31, 0x31, 0x31, 0x31,
+    0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31,
+    0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x02,
+]);
 
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    program_id: &Address,
+    accounts: &[AccountView],
     instruction_data: &[u8],
 ) -> ProgramResult {
     if program_id != &ID {
@@ -35,7 +39,7 @@ pub fn process_instruction(
 }
 
 /// Initialize a new Admin account
-fn initialize_admin(accounts: &[AccountInfo]) -> ProgramResult {
+fn initialize_admin(accounts: &[AccountView]) -> ProgramResult {
     let [authority_info, admin_account_info, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -46,28 +50,26 @@ fn initialize_admin(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Verify the account is owned by our program
-    if admin_account_info.owner() != &ID {
+    if !admin_account_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // Initialize the account
-    let mut data = admin_account_info.try_borrow_mut_data()?;
+    let mut data = admin_account_info.try_borrow_mut()?;
 
     if data.len() < Admin::LEN {
         return Err(ProgramError::AccountDataTooSmall);
     }
 
     // Serialize Admin account with discriminator
-    Admin::serialize(authority_info.key().as_ref(), 0, &mut data);
-
-    msg!("Admin account initialized for authority: {}", authority_info.key());
-    msg!("Privilege level: {}", Admin::PRIVILEGE_LEVEL);
+    let authority_bytes: [u8; 32] = authority_info.address().as_ref().try_into().unwrap();
+    Admin::serialize(&authority_bytes, 0, &mut data);
 
     Ok(())
 }
 
 /// Initialize a new User account
-fn initialize_user(accounts: &[AccountInfo]) -> ProgramResult {
+fn initialize_user(accounts: &[AccountView]) -> ProgramResult {
     let [authority_info, user_account_info, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -78,22 +80,20 @@ fn initialize_user(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Verify the account is owned by our program
-    if user_account_info.owner() != &ID {
+    if !user_account_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // Initialize the account
-    let mut data = user_account_info.try_borrow_mut_data()?;
+    let mut data = user_account_info.try_borrow_mut()?;
 
     if data.len() < User::LEN {
         return Err(ProgramError::AccountDataTooSmall);
     }
 
     // Serialize User account with discriminator
-    User::serialize(authority_info.key().as_ref(), 0, &mut data);
-
-    msg!("User account initialized for authority: {}", authority_info.key());
-    msg!("Privilege level: {}", User::PRIVILEGE_LEVEL);
+    let authority_bytes: [u8; 32] = authority_info.address().as_ref().try_into().unwrap();
+    User::serialize(&authority_bytes, 0, &mut data);
 
     Ok(())
 }
@@ -117,7 +117,7 @@ fn initialize_user(accounts: &[AccountInfo]) -> ProgramResult {
 /// ATTACK SCENARIO (PREVENTED):
 /// Before: Attacker could pass User account as Admin
 /// After: Discriminator check catches the type mismatch immediately
-fn admin_operation(accounts: &[AccountInfo]) -> ProgramResult {
+fn admin_operation(accounts: &[AccountView]) -> ProgramResult {
     let [authority_info, admin_account_info] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -128,12 +128,12 @@ fn admin_operation(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Verify the account is owned by our program
-    if admin_account_info.owner() != &ID {
+    if !admin_account_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // SECURITY: Validate discriminator BEFORE deserializing
-    let data = admin_account_info.try_borrow_data()?;
+    let data = admin_account_info.try_borrow()?;
 
     if data.len() < Admin::LEN {
         return Err(ProgramError::AccountDataTooSmall);
@@ -141,40 +141,28 @@ fn admin_operation(accounts: &[AccountInfo]) -> ProgramResult {
 
     // Method 1: Explicit discriminator check before deserialization
     if data[0] != Admin::DISCRIMINATOR {
-        msg!("ERROR: Invalid account type!");
-        msg!("Expected Admin (discriminator={}), got discriminator={}",
-             Admin::DISCRIMINATOR, data[0]);
         return Err(ProgramError::InvalidAccountData);
     }
 
     // Method 2: Use the secure deserialize function that checks internally
     // The Admin::deserialize function now validates the discriminator
     let admin = Admin::deserialize(&data)
-        .map_err(|e| {
-            msg!("Deserialization failed: {}", e);
-            ProgramError::InvalidAccountData
-        })?;
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Verify the authority matches
-    if admin.authority != *authority_info.key().as_ref() {
+    let authority_bytes: [u8; 32] = authority_info.address().as_ref().try_into().unwrap();
+    if admin.authority != authority_bytes {
         return Err(ProgramError::InvalidAccountData);
     }
 
     // At this point, we are GUARANTEED to have a valid Admin account
     // User accounts will have been rejected at the discriminator check
 
-    msg!("=== SECURE ADMIN OPERATION EXECUTED ===");
-    msg!("Authority: {}", authority_info.key());
-    msg!("Privilege Level: {}", admin.privilege_level);
-    msg!("Operation Count: {}", admin.operation_count);
-    msg!("Type validation passed: This is a verified Admin account");
-
     // Perform privileged operations safely
-    msg!("Performing privileged admin operation...");
 
     // Update operation count
     drop(data); // Release borrow
-    let mut data = admin_account_info.try_borrow_mut_data()?;
+    let mut data = admin_account_info.try_borrow_mut()?;
 
     // Validate discriminator again before updating
     if data[0] != Admin::DISCRIMINATOR {
@@ -188,8 +176,6 @@ fn admin_operation(accounts: &[AccountInfo]) -> ProgramResult {
 
     // Update operation count
     data[34..42].copy_from_slice(&new_count.to_le_bytes());
-
-    msg!("Operation count updated to: {}", new_count);
 
     Ok(())
 }

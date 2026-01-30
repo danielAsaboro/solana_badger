@@ -1,4 +1,4 @@
-use pinocchio::pubkey::Pubkey;
+use pinocchio::Address;
 
 /// Token pool state with user-specific ownership
 ///
@@ -8,21 +8,21 @@ use pinocchio::pubkey::Pubkey;
 /// This ensures each user gets their own unique pool PDA.
 ///
 /// Memory layout:
-/// [0..32]   owner: Pubkey (32 bytes)
-/// [32..64]  mint: Pubkey (32 bytes)
-/// [64..96]  vault: Pubkey (32 bytes)
+/// [0..32]   owner: Address (32 bytes)
+/// [32..64]  mint: Address (32 bytes)
+/// [64..96]  vault: Address (32 bytes)
 /// [96]      bump: u8 (1 byte)
 /// Total: 97 bytes
 pub struct TokenPool {
     /// The user who owns this pool
     /// CRITICAL: Used in PDA derivation to ensure uniqueness
-    pub owner: Pubkey,
+    pub owner: Address,
 
     /// The token mint this pool manages
-    pub mint: Pubkey,
+    pub mint: Address,
 
     /// The token account (vault) holding this user's deposited tokens
-    pub vault: Pubkey,
+    pub vault: Address,
 
     /// Bump seed for PDA derivation
     pub bump: u8,
@@ -55,9 +55,9 @@ impl TokenPool {
         vault_bytes.copy_from_slice(&data[64..96]);
 
         Ok(TokenPool {
-            owner: Pubkey::from(owner_bytes),
-            mint: Pubkey::from(mint_bytes),
-            vault: Pubkey::from(vault_bytes),
+            owner: Address::new_from_array(owner_bytes),
+            mint: Address::new_from_array(mint_bytes),
+            vault: Address::new_from_array(vault_bytes),
             bump: data[96],
         })
     }

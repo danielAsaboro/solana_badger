@@ -1,24 +1,28 @@
 #![no_std]
 
 use pinocchio::{
-    account_info::AccountInfo,
     entrypoint,
-    msg,
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    AccountView,
+    Address,
     ProgramResult,
 };
+use solana_program_error::ProgramError;
 
 pub mod state;
-use state::{Admin, User, discriminators};
+use state::{Admin, User};
 
-const ID: Pubkey = pinocchio::pubkey!("VuLnTypePino1111111111111111111111111111");
+const ID: Address = Address::new_from_array([
+    0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x87,
+    0x78, 0x69, 0x5a, 0x4b, 0x3c, 0x2d, 0x1e, 0x0f,
+    0x0f, 0x1e, 0x2d, 0x3c, 0x4b, 0x5a, 0x69, 0x78,
+    0x87, 0x96, 0xa5, 0xb4, 0xc3, 0xd2, 0xe1, 0x01,
+]);
 
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    program_id: &Address,
+    accounts: &[AccountView],
     instruction_data: &[u8],
 ) -> ProgramResult {
     if program_id != &ID {
@@ -35,7 +39,7 @@ pub fn process_instruction(
 }
 
 /// Initialize a new Admin account
-fn initialize_admin(accounts: &[AccountInfo]) -> ProgramResult {
+fn initialize_admin(accounts: &[AccountView]) -> ProgramResult {
     let [authority_info, admin_account_info, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -46,28 +50,26 @@ fn initialize_admin(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Verify the account is owned by our program
-    if admin_account_info.owner() != &ID {
+    if !admin_account_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // Initialize the account
-    let mut data = admin_account_info.try_borrow_mut_data()?;
+    let mut data = admin_account_info.try_borrow_mut()?;
 
     if data.len() < Admin::LEN {
         return Err(ProgramError::AccountDataTooSmall);
     }
 
     // Serialize Admin account with discriminator
-    Admin::serialize(authority_info.key().as_ref(), 0, &mut data);
-
-    msg!("Admin account initialized for authority: {}", authority_info.key());
-    msg!("Privilege level: {}", Admin::PRIVILEGE_LEVEL);
+    let authority_bytes: [u8; 32] = authority_info.address().as_ref().try_into().unwrap();
+    Admin::serialize(&authority_bytes, 0, &mut data);
 
     Ok(())
 }
 
 /// Initialize a new User account
-fn initialize_user(accounts: &[AccountInfo]) -> ProgramResult {
+fn initialize_user(accounts: &[AccountView]) -> ProgramResult {
     let [authority_info, user_account_info, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -78,22 +80,20 @@ fn initialize_user(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Verify the account is owned by our program
-    if user_account_info.owner() != &ID {
+    if !user_account_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // Initialize the account
-    let mut data = user_account_info.try_borrow_mut_data()?;
+    let mut data = user_account_info.try_borrow_mut()?;
 
     if data.len() < User::LEN {
         return Err(ProgramError::AccountDataTooSmall);
     }
 
     // Serialize User account with discriminator
-    User::serialize(authority_info.key().as_ref(), 0, &mut data);
-
-    msg!("User account initialized for authority: {}", authority_info.key());
-    msg!("Privilege level: {}", User::PRIVILEGE_LEVEL);
+    let authority_bytes: [u8; 32] = authority_info.address().as_ref().try_into().unwrap();
+    User::serialize(&authority_bytes, 0, &mut data);
 
     Ok(())
 }
@@ -120,7 +120,7 @@ fn initialize_user(accounts: &[AccountInfo]) -> ProgramResult {
 /// - We never check if data[0] == Admin::DISCRIMINATOR
 /// - The deserialize functions skip the discriminator byte
 /// - Authority check passes because the attacker signs with their own key
-fn admin_operation(accounts: &[AccountInfo]) -> ProgramResult {
+fn admin_operation(accounts: &[AccountView]) -> ProgramResult {
     let [authority_info, admin_account_info] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -132,7 +132,7 @@ fn admin_operation(accounts: &[AccountInfo]) -> ProgramResult {
 
     // Verify the account is owned by our program
     // VULNERABILITY: This check passes for BOTH Admin and User accounts!
-    if admin_account_info.owner() != &ID {
+    if !admin_account_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -142,7 +142,7 @@ fn admin_operation(accounts: &[AccountInfo]) -> ProgramResult {
     // }
 
     // Deserialize the account data
-    let data = admin_account_info.try_borrow_data()?;
+    let data = admin_account_info.try_borrow()?;
 
     if data.len() < Admin::LEN {
         return Err(ProgramError::AccountDataTooSmall);
@@ -154,26 +154,20 @@ fn admin_operation(accounts: &[AccountInfo]) -> ProgramResult {
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Verify the authority matches
-    if admin.authority != *authority_info.key().as_ref() {
+    let authority_bytes: [u8; 32] = authority_info.address().as_ref().try_into().unwrap();
+    if admin.authority != authority_bytes {
         return Err(ProgramError::InvalidAccountData);
     }
 
     // At this point, "admin" could actually be a User account!
     // The type cosplay attack has succeeded
 
-    msg!("=== ADMIN OPERATION EXECUTED ===");
-    msg!("Authority: {}", authority_info.key());
-    msg!("Privilege Level: {}", admin.privilege_level);
-    msg!("Operation Count: {}", admin.operation_count);
-    msg!("WARNING: This operation executed without discriminator validation!");
-
     // In a real scenario, this would perform privileged operations
     // like transferring funds, updating critical state, etc.
-    msg!("Performing privileged admin operation...");
 
     // Update operation count
     drop(data); // Release borrow
-    let mut data = admin_account_info.try_borrow_mut_data()?;
+    let mut data = admin_account_info.try_borrow_mut()?;
 
     // VULNERABILITY: We update without checking discriminator again
     let admin = Admin::deserialize(&data)

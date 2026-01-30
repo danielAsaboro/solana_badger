@@ -1,34 +1,33 @@
 #![no_std]
 
 use pinocchio::{
-    account_info::AccountInfo,
     entrypoint,
-    msg,
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    AccountView,
+    Address,
     ProgramResult,
 };
+use solana_program_error::ProgramError;
 
 pub mod state;
 use state::Vault;
 
 // Program ID as a constant byte array
-const ID_BYTES: [u8; 32] = [
+const ID: Address = Address::new_from_array([
     0xd1, 0x6c, 0x7e, 0x1f, 0x8a, 0xb3, 0x4c, 0x5d,
     0xe9, 0x2a, 0x1b, 0xf6, 0xc3, 0x7d, 0x4e, 0x8f,
     0xa5, 0xb6, 0xc7, 0xd8, 0xe9, 0xfa, 0x0b, 0x1c,
     0x2d, 0x3e, 0x4f, 0x50, 0x61, 0x72, 0x83, 0x94,
-];
+]);
 
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    program_id: &Address,
+    accounts: &[AccountView],
     instruction_data: &[u8],
 ) -> ProgramResult {
     // Verify program ID
-    if program_id.as_ref() != &ID_BYTES {
+    if program_id != &ID {
         return Err(ProgramError::IncorrectProgramId);
     }
 
@@ -60,7 +59,7 @@ pub fn process_instruction(
 /// 2. Attacker calls unsafe_initialize with victim's vault account
 /// 3. Account becomes: [DISC=1][attacker_key][balance=0]
 /// 4. Attacker gained authority, victim lost control!
-fn unsafe_initialize(accounts: &[AccountInfo]) -> ProgramResult {
+fn unsafe_initialize(accounts: &[AccountView]) -> ProgramResult {
     let [authority_info, vault_info] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -71,30 +70,26 @@ fn unsafe_initialize(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Verify the vault account is owned by our program
-    if vault_info.owner().as_ref() != &ID_BYTES {
+    if !vault_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // Get mutable access to vault data
-    unsafe {
-        let data = &mut *vault_info.try_borrow_mut_data()?;
+    let mut data = vault_info.try_borrow_mut()?;
 
-        // Check account has enough space
-        if data.len() < Vault::LEN {
-            return Err(ProgramError::AccountDataTooSmall);
-        }
-
-        // VULNERABILITY: No check if discriminator is already set!
-        // We should check: if data[0] == Vault::DISCRIMINATOR { return error; }
-        // Without this check, we allow reinitialization of existing vaults.
-
-        // DANGEROUS: Directly overwrite all data without validation
-        data[0] = Vault::DISCRIMINATOR; // Set discriminator
-        data[1..33].copy_from_slice(authority_info.key().as_ref()); // Set authority
-        data[33..41].fill(0); // Zero out balance
-
-        msg!("Vault initialized or RE-initialized with authority");
+    // Check account has enough space
+    if data.len() < Vault::LEN {
+        return Err(ProgramError::AccountDataTooSmall);
     }
+
+    // VULNERABILITY: No check if discriminator is already set!
+    // We should check: if data[0] == Vault::DISCRIMINATOR { return error; }
+    // Without this check, we allow reinitialization of existing vaults.
+
+    // DANGEROUS: Directly overwrite all data without validation
+    data[0] = Vault::DISCRIMINATOR; // Set discriminator
+    data[1..33].copy_from_slice(authority_info.address().as_ref()); // Set authority
+    data[33..41].fill(0); // Zero out balance
 
     Ok(())
 }

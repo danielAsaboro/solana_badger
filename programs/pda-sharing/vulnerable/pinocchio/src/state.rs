@@ -1,4 +1,4 @@
-use pinocchio::pubkey::Pubkey;
+use pinocchio::Address;
 
 /// Token pool state tracking vault and mint
 ///
@@ -6,17 +6,17 @@ use pinocchio::pubkey::Pubkey;
 /// creating a SHARED PDA across all users depositing the same token type.
 ///
 /// Memory layout:
-/// [0..32]   mint: Pubkey (32 bytes)
-/// [32..64]  vault: Pubkey (32 bytes)
+/// [0..32]   mint: Address (32 bytes)
+/// [32..64]  vault: Address (32 bytes)
 /// [64]      bump: u8 (1 byte)
 /// Total: 65 bytes
 pub struct TokenPool {
     /// The token mint this pool manages
-    pub mint: Pubkey,
+    pub mint: Address,
 
     /// The token account (vault) holding deposited tokens
     /// ISSUE: Single vault per mint means all users' funds are mixed
-    pub vault: Pubkey,
+    pub vault: Address,
 
     /// Bump seed for PDA derivation
     pub bump: u8,
@@ -45,8 +45,8 @@ impl TokenPool {
         vault_bytes.copy_from_slice(&data[32..64]);
 
         Ok(TokenPool {
-            mint: Pubkey::from(mint_bytes),
-            vault: Pubkey::from(vault_bytes),
+            mint: Address::new_from_array(mint_bytes),
+            vault: Address::new_from_array(vault_bytes),
             bump: data[64],
         })
     }

@@ -9,8 +9,8 @@ Educational repository demonstrating common Solana security vulnerabilities with
 [📖 Documentation](#documentation) • [🎥 Video Series](#video-content) • [🧪 Run Tests](#running-tests) • [🚀 Quick Start](#quick-start)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Anchor](https://img.shields.io/badge/Anchor-0.30.1-blueviolet)](https://www.anchor-lang.com/)
-[![Pinocchio](https://img.shields.io/badge/Pinocchio-0.7.0-orange)](https://github.com/anza-xyz/pinocchio)
+[![Anchor](https://img.shields.io/badge/Anchor-0.32.1-blueviolet)](https://www.anchor-lang.com/)
+[![Pinocchio](https://img.shields.io/badge/Pinocchio-0.10.1-orange)](https://github.com/anza-xyz/pinocchio)
 
 </div>
 
@@ -30,12 +30,12 @@ Learn Solana security by seeing real exploits and their fixes. Every vulnerabili
 
 | # | Vulnerability | Severity | Anchor | Pinocchio | Tests | Docs |
 |---|--------------|----------|---------|-----------|-------|------|
-| 1 | [Missing Signer Checks](programs/signer-checks/) | 🔴 Critical | ✅ | ✅ | 🚧 | ✅ |
-| 2 | [Missing Owner Checks](programs/owner-checks/) | 🔴 Critical | ✅ | ✅ | 🚧 | ✅ |
-| 3 | [Arbitrary CPI](programs/arbitrary-cpi/) | 🟠 High | ✅ | ✅ | 🚧 | ✅ |
-| 4 | [Reinitialization Attacks](programs/reinitialization-attacks/) | 🟠 High | ✅ | ✅ | 🚧 | ✅ |
-| 5 | [Type Cosplay](programs/type-cosplay/) | 🟡 Medium | ✅ | ✅ | 🚧 | ✅ |
-| 6 | [PDA Sharing](programs/pda-sharing/) | 🟡 Medium | ✅ | ✅ | 🚧 | ✅ |
+| 1 | [Missing Signer Checks](programs/signer-checks/) | 🔴 Critical | ✅ | ✅ | ✅ | ✅ |
+| 2 | [Missing Owner Checks](programs/owner-checks/) | 🔴 Critical | ✅ | ✅ | ✅ | ✅ |
+| 3 | [Arbitrary CPI](programs/arbitrary-cpi/) | 🟠 High | ✅ | ✅ | ✅ | ✅ |
+| 4 | [Reinitialization Attacks](programs/reinitialization-attacks/) | 🟠 High | ✅ | ✅ | ✅ | ✅ |
+| 5 | [Type Cosplay](programs/type-cosplay/) | 🟡 Medium | ✅ | ✅ | ✅ | ✅ |
+| 6 | [PDA Sharing](programs/pda-sharing/) | 🟡 Medium | ✅ | ✅ | ✅ | ✅ |
 
 Legend: ✅ Complete | 🚧 In Progress
 
@@ -56,7 +56,7 @@ stng/
 │   ├── reinitialization-attacks/  # ✅ Account re-initialization exploits (4 programs)
 │   ├── type-cosplay/          # ✅ Account type confusion (4 programs)
 │   └── pda-sharing/           # ✅ Insufficient PDA seed derivation (4 programs)
-├── tests/                     # 🚧 Automated exploit demonstrations
+├── tests/                     # ✅ Automated exploit demonstrations (Anchor)
 ├── badger/docs/               # 🚧 Mintlify documentation site
 ├── media/                     # 📹 Video content and diagrams
 ├── scripts/                   # ✅ Build and test automation
@@ -261,7 +261,7 @@ Built for **SuperteamNG Security Bounty**
 - ✅ **Per-vulnerability READMEs** - Dedicated documentation for each security issue
 - ✅ **Build automation scripts** - Easy building and testing of all programs
 - ✅ **Project configuration** - package.json, tsconfig.json, .gitignore, LICENSE
-- 🚧 **Test suite** - Automated exploit demonstrations (in progress)
+- ✅ **Test suite** - Automated exploit demonstrations for Anchor (28 passing tests)
 - 🚧 **Documentation site** - Mintlify-powered interactive docs (in progress)
 - 📹 **Video content** - Deep-dive walkthroughs (pending)
 - 🚧 **Framework comparison** - Detailed analysis pages (in progress)

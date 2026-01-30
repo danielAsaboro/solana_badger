@@ -1,25 +1,38 @@
 #![no_std]
 
 use pinocchio::{
-    account_info::AccountInfo,
     entrypoint,
-    msg,
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    AccountView,
+    Address,
     ProgramResult,
 };
-use pinocchio_token::instructions::{Transfer, TransferAccounts};
+use solana_program_error::ProgramError;
+use pinocchio_token::instructions::Transfer;
+
+// Helper function to find program address
+fn find_pda(seeds: &[&[u8]], program_id: &[u8]) -> (Address, u8) {
+    use solana_program::pubkey::Pubkey;
+    let program_pubkey = Pubkey::new_from_array(program_id.try_into().unwrap());
+    let (pubkey, bump) = Pubkey::find_program_address(seeds, &program_pubkey);
+    let addr_bytes: [u8; 32] = pubkey.to_bytes();
+    (Address::new_from_array(addr_bytes), bump)
+}
 
 pub mod state;
 use state::TokenPool;
 
-const ID: Pubkey = pinocchio::pubkey!("PDA2Pino1111111111111111111111111111111111");
+const ID: Address = Address::new_from_array([
+    0x50, 0x44, 0x41, 0x32, 0x50, 0x69, 0x6e, 0x6f,
+    0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31,
+    0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31,
+    0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x02,
+]);
 
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    program_id: &Address,
+    accounts: &[AccountView],
     instruction_data: &[u8],
 ) -> ProgramResult {
     if program_id != &ID {
@@ -75,7 +88,7 @@ pub fn process_instruction(
 /// 2. `[]` vault token account
 /// 3. `[]` mint
 /// 4. `[]` system_program
-fn initialize_pool(accounts: &[AccountInfo]) -> ProgramResult {
+fn initialize_pool(accounts: &[AccountView]) -> ProgramResult {
     let [owner_info, pool_info, vault_info, mint_info, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -86,54 +99,50 @@ fn initialize_pool(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Verify pool is owned by our program
-    if pool_info.owner() != &ID {
+    if !pool_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // SECURITY FIX: Derive PDA from BOTH owner AND mint
-    // Seeds: [b"pool", owner.key(), mint.key()]
+    // Seeds: [b"pool", owner.address(), mint.address()]
     // This creates a unique PDA for each user-mint combination
-    let (expected_pool, bump) = Pubkey::find_program_address(
-        &[b"pool", owner_info.key().as_ref(), mint_info.key().as_ref()],
-        &ID,
+    let (expected_pool, bump) = find_pda(
+        &[b"pool", owner_info.address().as_ref(), mint_info.address().as_ref()],
+        ID.as_ref(),
     );
 
-    if pool_info.key() != &expected_pool {
-        msg!("Invalid pool PDA");
+    if pool_info.address().as_ref() != expected_pool.as_ref() {
         return Err(ProgramError::InvalidSeeds);
     }
 
     // Verify vault is owned by pool PDA
-    let vault_owner = unsafe {
-        let data = vault_info.borrow_data_unchecked();
+    let vault_owner = {
+        let data = vault_info.try_borrow()?;
         let owner_bytes: [u8; 32] = data[32..64].try_into().unwrap();
-        Pubkey::from(owner_bytes)
+        Address::new_from_array(owner_bytes)
     };
 
-    if vault_owner != expected_pool {
-        msg!("Vault must be owned by pool PDA");
+    if vault_owner.as_ref() != expected_pool.as_ref() {
         return Err(ProgramError::InvalidAccountData);
     }
 
     // Initialize pool state
-    let mut pool_data = pool_info.try_borrow_mut_data()?;
+    let mut pool_data = pool_info.try_borrow_mut()?;
 
     if pool_data.len() < TokenPool::LEN {
         return Err(ProgramError::AccountDataTooSmall);
     }
 
+    let owner_bytes: [u8; 32] = owner_info.address().as_ref().try_into().unwrap();
+    let mint_bytes: [u8; 32] = mint_info.address().as_ref().try_into().unwrap();
+    let vault_bytes: [u8; 32] = vault_info.address().as_ref().try_into().unwrap();
     TokenPool::serialize(
-        owner_info.key().as_ref(),
-        mint_info.key().as_ref(),
-        vault_info.key().as_ref(),
+        &owner_bytes,
+        &mint_bytes,
+        &vault_bytes,
         bump,
         &mut pool_data,
     );
-
-    msg!("Pool initialized for owner: {}", owner_info.key());
-    msg!("Mint: {}", mint_info.key());
-    msg!("Vault address: {}", vault_info.key());
-    msg!("SECURE: Pool PDA includes user pubkey - isolated per user");
 
     Ok(())
 }
@@ -150,7 +159,7 @@ fn initialize_pool(accounts: &[AccountInfo]) -> ProgramResult {
 /// 2. `[writable]` user's token account
 /// 3. `[writable]` vault token account
 /// 4. `[]` token program
-fn deposit(accounts: &[AccountInfo], amount: u64) -> ProgramResult {
+fn deposit(accounts: &[AccountView], amount: u64) -> ProgramResult {
     let [depositor_info, pool_info, user_token_info, vault_info, _token_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -161,46 +170,39 @@ fn deposit(accounts: &[AccountInfo], amount: u64) -> ProgramResult {
     }
 
     // Deserialize pool
-    let pool_data = pool_info.try_borrow_data()?;
+    let pool_data = pool_info.try_borrow()?;
     let pool = TokenPool::deserialize(&pool_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // SECURITY: Verify pool PDA derivation includes owner
-    let (expected_pool, _bump) = Pubkey::find_program_address(
+    let (expected_pool, _bump) = find_pda(
         &[b"pool", pool.owner.as_ref(), pool.mint.as_ref()],
-        &ID,
+        ID.as_ref(),
     );
 
-    if pool_info.key() != &expected_pool {
-        msg!("Invalid pool PDA");
+    if pool_info.address().as_ref() != expected_pool.as_ref() {
         return Err(ProgramError::InvalidSeeds);
     }
 
     // SECURITY: Verify depositor matches pool owner
-    if depositor_info.key() != &pool.owner {
-        msg!("Only pool owner can deposit");
+    if depositor_info.address().as_ref() != pool.owner.as_ref() {
         return Err(ProgramError::InvalidAccountData);
     }
 
     // Verify vault matches pool
-    if vault_info.key() != &pool.vault {
-        msg!("Invalid vault");
+    if vault_info.address().as_ref() != pool.vault.as_ref() {
         return Err(ProgramError::InvalidAccountData);
     }
-
-    msg!("Depositing {} tokens into personal pool", amount);
-    msg!("Owner: {}", pool.owner);
-    msg!("SECURE: User-specific isolated vault");
 
     // Transfer tokens from user to their personal vault
     Transfer {
         from: user_token_info,
         to: vault_info,
         authority: depositor_info,
+        amount,
     }
-    .invoke(&[amount])?;
+    .invoke()?;
 
-    msg!("Deposit successful");
     Ok(())
 }
 
@@ -233,7 +235,7 @@ fn deposit(accounts: &[AccountInfo], amount: u64) -> ProgramResult {
 /// 2. `[writable]` vault token account
 /// 3. `[writable]` destination token account
 /// 4. `[]` token program
-fn withdraw(accounts: &[AccountInfo], amount: u64) -> ProgramResult {
+fn withdraw(accounts: &[AccountView], amount: u64) -> ProgramResult {
     let [owner_info, pool_info, vault_info, destination_info, _token_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -244,53 +246,47 @@ fn withdraw(accounts: &[AccountInfo], amount: u64) -> ProgramResult {
     }
 
     // Deserialize pool
-    let pool_data = pool_info.try_borrow_data()?;
+    let pool_data = pool_info.try_borrow()?;
     let pool = TokenPool::deserialize(&pool_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // SECURITY FIX 1: Verify pool PDA derivation includes owner
-    let (expected_pool, bump) = Pubkey::find_program_address(
+    let (expected_pool, bump) = find_pda(
         &[b"pool", pool.owner.as_ref(), pool.mint.as_ref()],
-        &ID,
+        ID.as_ref(),
     );
 
-    if pool_info.key() != &expected_pool {
-        msg!("Invalid pool PDA");
+    if pool_info.address().as_ref() != expected_pool.as_ref() {
         return Err(ProgramError::InvalidSeeds);
     }
 
     // SECURITY FIX 2: Verify signer matches pool owner
-    if owner_info.key() != &pool.owner {
-        msg!("Only pool owner can withdraw");
+    if owner_info.address().as_ref() != pool.owner.as_ref() {
         return Err(ProgramError::InvalidAccountData);
     }
 
     // Verify vault matches pool
-    if vault_info.key() != &pool.vault {
-        msg!("Invalid vault");
+    if vault_info.address().as_ref() != pool.vault.as_ref() {
         return Err(ProgramError::InvalidAccountData);
     }
 
-    msg!("=== SECURE WITHDRAWAL ===");
-    msg!("Withdrawing {} tokens from personal pool", amount);
-    msg!("Owner: {}", pool.owner);
-    msg!("SECURE: Owner validation prevents unauthorized withdrawals");
-
     // SECURITY: User-specific PDA seeds ensure isolated authority
-    let seeds: &[&[u8]] = &[
-        b"pool",
-        pool.owner.as_ref(),
-        pool.mint.as_ref(),
-        &[bump],
+    let bump_seed = [bump];
+    let seeds = [
+        pinocchio::cpi::Seed::from(&b"pool"[..]),
+        pinocchio::cpi::Seed::from(pool.owner.as_ref()),
+        pinocchio::cpi::Seed::from(pool.mint.as_ref()),
+        pinocchio::cpi::Seed::from(&bump_seed[..]),
     ];
+    let signer = pinocchio::cpi::Signer::from(&seeds[..]);
 
     Transfer {
         from: vault_info,
         to: destination_info,
         authority: pool_info,
+        amount,
     }
-    .invoke_signed(&[amount], &[seeds])?;
+    .invoke_signed(&[signer])?;
 
-    msg!("Withdrawal successful - only owner can withdraw their tokens");
     Ok(())
 }

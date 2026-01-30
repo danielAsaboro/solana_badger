@@ -1,24 +1,28 @@
 #![no_std]
 
 use pinocchio::{
-    account_info::AccountInfo,
     entrypoint,
-    msg,
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    AccountView,
+    Address,
     ProgramResult,
 };
+use solana_program_error::ProgramError;
 
 pub mod state;
 use state::ProgramAccount;
 
-const ID: Pubkey = pinocchio::pubkey!("5ecrPino111111111111111111111111111111111");
+const ID: Address = Address::new_from_array([
+    0xd1, 0x6c, 0x7e, 0x1f, 0x8a, 0xb3, 0x4c, 0x5d,
+    0xe9, 0x2a, 0x1b, 0xf6, 0xc3, 0x7d, 0x4e, 0x8f,
+    0xa5, 0xb6, 0xc7, 0xd8, 0xe9, 0xfa, 0x0b, 0x1c,
+    0x2d, 0x3e, 0x4f, 0x50, 0x61, 0x72, 0x83, 0x02,
+]);
 
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    program_id: &Address,
+    accounts: &[AccountView],
     instruction_data: &[u8],
 ) -> ProgramResult {
     if program_id != &ID {
@@ -34,7 +38,7 @@ pub fn process_instruction(
 }
 
 /// Initialize a new program account
-fn initialize(accounts: &[AccountInfo]) -> ProgramResult {
+fn initialize(accounts: &[AccountView]) -> ProgramResult {
     let [owner_info, program_account_info, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -45,12 +49,12 @@ fn initialize(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Verify the account is owned by our program
-    if program_account_info.owner() != &ID {
+    if !program_account_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // Write initial data
-    let mut data = program_account_info.try_borrow_mut_data()?;
+    let mut data = program_account_info.try_borrow_mut()?;
 
     // Check account has enough space
     if data.len() < ProgramAccount::LEN {
@@ -59,19 +63,18 @@ fn initialize(accounts: &[AccountInfo]) -> ProgramResult {
 
     // Initialize the account
     data[0] = 1; // Initialized flag
-    data[1..33].copy_from_slice(owner_info.key().as_ref());
+    data[1..33].copy_from_slice(owner_info.address().as_ref());
 
     // Zero out the data field (8 bytes)
     data[33..41].fill(0);
 
-    msg!("Program account initialized with owner: {}", owner_info.key());
     Ok(())
 }
 
 /// SECURE: Update owner with proper signer validation
 ///
 /// This implementation demonstrates the fix for the signer check vulnerability:
-/// 1. It validates that the owner AccountInfo signed the transaction
+/// 1. It validates that the owner AccountView signed the transaction
 /// 2. It checks both data matching AND signature presence
 /// 3. An attacker CANNOT pass someone else's key without their signature
 ///
@@ -84,7 +87,7 @@ fn initialize(accounts: &[AccountInfo]) -> ProgramResult {
 /// - Anchor's Signer type does this automatically via the type system
 /// - Pinocchio requires explicit is_signer() checks (more control, more responsibility)
 /// - Both approaches are equally secure when implemented correctly
-fn update_owner(accounts: &[AccountInfo]) -> ProgramResult {
+fn update_owner(accounts: &[AccountView]) -> ProgramResult {
     let [owner_info, program_account_info, new_owner_info] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -96,12 +99,12 @@ fn update_owner(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Verify the account is owned by our program
-    if program_account_info.owner() != &ID {
+    if !program_account_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // Read current account data
-    let mut data = program_account_info.try_borrow_mut_data()?;
+    let mut data = program_account_info.try_borrow_mut()?;
 
     if data.len() < ProgramAccount::LEN {
         return Err(ProgramError::AccountDataTooSmall);
@@ -113,10 +116,10 @@ fn update_owner(accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Read stored owner key from account data
-    let stored_owner = Pubkey::from(<[u8; 32]>::try_from(&data[1..33]).unwrap());
+    let stored_owner = Address::new_from_array(<[u8; 32]>::try_from(&data[1..33]).unwrap());
 
     // Verify the data matches (this prevents using the wrong account)
-    if stored_owner != *owner_info.key() {
+    if stored_owner != *owner_info.address() {
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -124,11 +127,8 @@ fn update_owner(accounts: &[AccountInfo]) -> ProgramResult {
     // 1. is_signer() check: Ensures owner authorized this transaction
     // 2. Data matching check: Ensures we're updating the correct account
 
-    let old_owner = stored_owner;
-
     // Safe to update owner now - we've verified signature + data
-    data[1..33].copy_from_slice(new_owner_info.key().as_ref());
+    data[1..33].copy_from_slice(new_owner_info.address().as_ref());
 
-    msg!("Owner updated from {} to {}", old_owner, new_owner_info.key());
     Ok(())
 }

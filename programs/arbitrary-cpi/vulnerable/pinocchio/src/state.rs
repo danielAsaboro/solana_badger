@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
-use pinocchio::pubkey::Pubkey;
+use pinocchio::Address;
 
 /// Vault state tracking authority and token account
 pub struct Vault {
-    pub authority: Pubkey,
-    pub token_account: Pubkey,
+    pub authority: Address,
+    pub token_account: Address,
     pub bump: u8,
 }
 
@@ -20,8 +20,8 @@ impl Vault {
             return Err("Account data too small");
         }
 
-        let authority = Pubkey::from(<[u8; 32]>::try_from(&data[0..32]).unwrap());
-        let token_account = Pubkey::from(<[u8; 32]>::try_from(&data[32..64]).unwrap());
+        let authority = Address::new_from_array(<[u8; 32]>::try_from(&data[0..32]).unwrap());
+        let token_account = Address::new_from_array(<[u8; 32]>::try_from(&data[32..64]).unwrap());
         let bump = data[64];
 
         Ok(Self {

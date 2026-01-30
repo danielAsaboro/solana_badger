@@ -1,24 +1,28 @@
 #![no_std]
 
 use pinocchio::{
-    account_info::AccountInfo,
     entrypoint,
-    msg,
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    AccountView,
+    Address,
     ProgramResult,
 };
+use solana_program_error::ProgramError;
 
 pub mod state;
 use state::ProgramAccount;
 
-const ID: Pubkey = pinocchio::pubkey!("VuLnPino222222222222222222222222222222222");
+const ID: Address = Address::new_from_array([
+    0xf1, 0x68, 0x91, 0x4a, 0x2b, 0xdc, 0x3f, 0x5e,
+    0x70, 0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 0x07,
+    0x18, 0x29, 0x3a, 0x4b, 0x5c, 0x6d, 0x7e, 0x8f,
+    0x90, 0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 0x01,
+]);
 
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    program_id: &Address,
+    accounts: &[AccountView],
     instruction_data: &[u8],
 ) -> ProgramResult {
     if program_id != &ID {
@@ -34,7 +38,7 @@ pub fn process_instruction(
 }
 
 /// Initialize a new program account
-fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+fn initialize(accounts: &[AccountView], instruction_data: &[u8]) -> ProgramResult {
     let [authority_info, program_account_info, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -45,7 +49,7 @@ fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
     }
 
     // Verify the account is owned by our program
-    if program_account_info.owner() != &ID {
+    if !program_account_info.owned_by(&ID) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -56,7 +60,7 @@ fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
     let data = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
 
     // Write initial data
-    let mut account_data = program_account_info.try_borrow_mut_data()?;
+    let mut account_data = program_account_info.try_borrow_mut()?;
 
     // Check account has enough space
     if account_data.len() < ProgramAccount::LEN {
@@ -66,9 +70,8 @@ fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
     // Initialize the account
     account_data[0] = 1; // Initialized flag
     account_data[1..9].copy_from_slice(&data.to_le_bytes());
-    account_data[9..41].copy_from_slice(authority_info.key().as_ref());
+    account_data[9..41].copy_from_slice(authority_info.address().as_ref());
 
-    msg!("Program account initialized with data: {}", data);
     Ok(())
 }
 
@@ -95,7 +98,7 @@ fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
 /// - Attackers can craft "lookalike" accounts with malicious values
 /// - Business logic based on the data field can be completely subverted
 /// - Without owner checks, there's no guarantee the account is legitimate
-fn update_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+fn update_data(accounts: &[AccountView], instruction_data: &[u8]) -> ProgramResult {
     let [authority_info, program_account_info] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -107,7 +110,7 @@ fn update_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
 
     // VULNERABILITY: NOT checking if program_account_info is owned by our program!
     // This is the critical missing check. We should verify:
-    // if program_account_info.owner() != &ID {
+    // if !program_account_info.owned_by(&ID) {
     //     return Err(ProgramError::InvalidAccountOwner);
     // }
     //
@@ -121,7 +124,7 @@ fn update_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
     let new_data = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
 
     // Read current account data
-    let account_data = program_account_info.try_borrow_data()?;
+    let account_data = program_account_info.try_borrow()?;
 
     if account_data.len() < ProgramAccount::LEN {
         return Err(ProgramError::AccountDataTooSmall);
@@ -134,23 +137,16 @@ fn update_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResu
 
     // Read stored data from account
     let stored_data = u64::from_le_bytes(account_data[1..9].try_into().unwrap());
-    let stored_authority = Pubkey::from(<[u8; 32]>::try_from(&account_data[9..41]).unwrap());
-
-    msg!("Current data from account: {}", stored_data);
-    msg!("Authority from account: {}", stored_authority);
+    let stored_authority = Address::new_from_array(<[u8; 32]>::try_from(&account_data[9..41]).unwrap());
 
     // DANGER: We're reading and trusting this data, but we NEVER verified
     // that the account is owned by our program! An attacker controls these values!
 
     // Even if we validate the data here, it doesn't matter!
     // An attacker can set stored_data to ANY value they want in their fake account.
-    if stored_data < 100 {
-        msg!("Data validation passed, allowing update");
-    }
 
     // Business logic based on the unverified data
     // The attacker has full control over the execution path!
-    msg!("Updating data from {} to {}", stored_data, new_data);
 
     // In a real scenario, we might write back to the account or perform other actions
     // But the damage is already done - we trusted unverified data!
