@@ -1,5 +1,11 @@
 #![no_std]
 
+#[cfg(not(feature = "no-entrypoint"))]
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
+
 use pinocchio::{
     entrypoint,
     AccountView,
@@ -61,9 +67,18 @@ pub fn process_instruction(
 ///
 /// HOW IT PREVENTS THE ATTACK:
 /// 1. Alice creates vault: discriminator set to 1, authority = Alice
-/// 2. Bob tries to reinitialize: discriminator check fails (it's 1, not 0)
-/// 3. Function returns AccountAlreadyInitialized error
-/// 4. Alice's authority is never overwritten, vault stays safe
+/// 2. Bob discovers Alice's vault via PDA derivation (PDAs are deterministic!)
+///    - Bob computes: find_program_address([b"vault", alice_pubkey], program_id)
+///    - Bob now knows Alice's vault address
+/// 3. Bob tries to reinitialize: discriminator check fails (it's 1, not 0)
+/// 4. Function returns AccountAlreadyInitialized error
+/// 5. Alice's authority is never overwritten, vault stays safe
+///
+/// WHY PDAs DON'T MAKE THIS SECURE:
+/// - PDAs provide deterministic address generation (good for clients)
+/// - But this also means attackers can find anyone's vault address
+/// - Security comes from initialization guards, NOT from PDA obscurity
+/// - Always validate state before allowing state-changing operations!
 fn initialize(accounts: &[AccountView]) -> ProgramResult {
     let [authority_info, vault_info] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);

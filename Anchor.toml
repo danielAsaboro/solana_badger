@@ -31,6 +31,26 @@ secure_type_cosplay = "2aVdRcZRWcmttBdWJR7z9dt47UkSrrdB3Fco1F8yLmcj"
 vulnerable_pda_sharing = "4AYMT1uUswxPRdYNxg586mo2gdYrZeEcyx6FunqpZZzR"
 secure_pda_sharing = "6dKVUQcDpeq4Sh6a7QkKwW1dBR2BiJPSUFYdYQmPDHJe"
 
+# Bump Seed Canonicalization
+vulnerable_bump_seed_canonicalization = "EhLoKK5wYMoU95ibhc6ErhmAb9ELkLTWvqyeJBMAmpx2"
+secure_bump_seed_canonicalization = "5RmCKP8aNEDVdDPJwJXUn4icVzq4jti72kSfiBiJj9CJ"
+
+# Integer Overflow
+vulnerable_integer_overflow = "FJCcDyRTAEJBFocGJ6UwKMbPobZACyYHFmAv8wTsGsWy"
+secure_integer_overflow = "5tnoXzXyE4q84XSKmfuR6ZU1hWEXUHhbwyvhkNjyAxGH"
+
+# Panic Handling
+vulnerable_panic_handling = "A5QPcpmFYpkPQdPNhv92vXUZRGWMDsmy1HAy6dj2xKjr"
+secure_panic_handling = "BCaMVsHMzC2yT9S6fxEjnWHL7tm2VFk9jMetawEgTh4t"
+
+# Closing Accounts
+vulnerable_closing_accounts = "3k6fBqaWzqPmvHWjLrgpHqJx6BbKZ65zksZjAx24oGLz"
+secure_closing_accounts = "FtwjVwEqhZXjbMgii9D2EYkTjXyi3xYiejqmzhYDgZM3"
+
+# Unsafe Rust
+vulnerable_unsafe_rust = "HC7RbuKNEAZRx7WRhBgaBcYKeNr4fuaZwmo4V1LSCkGz"
+secure_unsafe_rust = "UuU4HvUCKQj4d6a2bxWHtsAhoZEw22i9iSunCtYLsHf"
+
 [registry]
 url = "https://api.apr.dev"
 
@@ -39,7 +59,7 @@ cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/*.test.ts"
 
 [workspace]
 members = [
@@ -55,4 +75,14 @@ members = [
     "programs/type-cosplay/secure/anchor",
     "programs/pda-sharing/vulnerable/anchor",
     "programs/pda-sharing/secure/anchor",
+    "programs/bump-seed-canonicalization/vulnerable/anchor",
+    "programs/bump-seed-canonicalization/secure/anchor",
+    "programs/integer-overflow/vulnerable/anchor",
+    "programs/integer-overflow/secure/anchor",
+    "programs/panic-handling/vulnerable/anchor",
+    "programs/panic-handling/secure/anchor",
+    "programs/closing-accounts/vulnerable/anchor",
+    "programs/closing-accounts/secure/anchor",
+    "programs/unsafe-rust/vulnerable/anchor",
+    "programs/unsafe-rust/secure/anchor",
 ]

@@ -20,9 +20,22 @@ pub mod vulnerable_reinitialization_attacks {
     ///
     /// ATTACK SCENARIO:
     /// 1. Alice creates a vault with 1000 SOL, setting herself as authority
-    /// 2. Bob (attacker) calls unsafe_initialize on Alice's vault account
-    /// 3. The instruction overwrites Alice's authority with Bob's key
-    /// 4. Bob now controls Alice's vault and can withdraw all funds
+    /// 2. Bob (attacker) discovers Alice's vault address using PDA derivation
+    ///    - PDAs are DETERMINISTIC and publicly derivable!
+    ///    - Vault PDA seeds: [b"vault", alice_pubkey]
+    ///    - Bob can compute: find_program_address([b"vault", alice_pubkey], program_id)
+    ///    - Result: Bob knows Alice's vault address WITHOUT needing Alice's permission
+    /// 3. Bob calls unsafe_initialize on Alice's vault account with Bob as authority
+    /// 4. The instruction overwrites Alice's authority with Bob's key
+    /// 5. Bob now controls Alice's vault and can withdraw all 1000 SOL
+    ///
+    /// HOW ATTACKERS FIND VICTIM VAULTS:
+    /// Since PDAs are deterministic, attackers can:
+    /// - Scan the blockchain for all vault accounts owned by this program
+    /// - For each vault, derive the expected PDA for different user pubkeys
+    /// - Match vault addresses to identify which users own which vaults
+    /// - Call unsafe_initialize on any vault they want to steal
+    /// This is why initialization guards are CRITICAL!
     pub fn unsafe_initialize(ctx: Context<UnsafeInitialize>) -> Result<()> {
         instructions::unsafe_initialize(ctx)
     }

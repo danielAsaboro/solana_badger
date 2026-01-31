@@ -6,7 +6,7 @@
 
 Educational repository demonstrating common Solana security vulnerabilities with vulnerable and secure implementations in both Anchor and Pinocchio frameworks.
 
-[📖 Documentation](#documentation) • [🎥 Video Series](#video-content) • [🧪 Run Tests](#running-tests) • [🚀 Quick Start](#quick-start)
+[📖 Documentation](#documentation) • [🧪 Run Tests](#running-tests) • [🚀 Quick Start](#quick-start)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Anchor](https://img.shields.io/badge/Anchor-0.32.1-blueviolet)](https://www.anchor-lang.com/)
@@ -56,16 +56,12 @@ stng/
 │   ├── reinitialization-attacks/  # ✅ Account re-initialization exploits (4 programs)
 │   ├── type-cosplay/          # ✅ Account type confusion (4 programs)
 │   └── pda-sharing/           # ✅ Insufficient PDA seed derivation (4 programs)
-├── tests/                     # ✅ Automated exploit demonstrations (Anchor)
-├── badger/docs/               # 🚧 Mintlify documentation site
-├── media/                     # 📹 Video content and diagrams
-├── scripts/                   # ✅ Build and test automation
-│   ├── build-all.sh           # ✅ Master build script
-│   ├── clean.sh               # ✅ Clean build artifacts
-│   └── test-all.sh            # ✅ Test runner
+├── tests/                     # ✅ Automated exploit demonstrations (46 total)
+├── badger/docs/               # ✅ Mintlify documentation site
+├── exploits/                  # ✅ Standalone exploit demonstrations
 └── README.md                  # ✅ This file
 
-✅ = Complete | 🚧 = In Progress | 📹 = Pending
+✅ = Complete
 ```
 
 ## 🚀 Quick Start
@@ -96,11 +92,6 @@ yarn install
 ### Building Programs
 
 ```bash
-# Build all programs at once
-./scripts/build-all.sh
-
-# Or build individually
-
 # Anchor programs
 cd programs/signer-checks/vulnerable/anchor
 anchor build
@@ -113,17 +104,22 @@ cargo build-sbf
 ## 🧪 Running Tests
 
 ```bash
-# Run all vulnerability tests
-npm test
+# Run all Anchor tests (28 tests)
+anchor test
 
-# Test specific vulnerability
-npm test -- signer-checks
+# Run all Pinocchio tests (18 tests)
+npm run test:pinocchio
 
-# Watch mode for development
-npm test -- --watch
+# Test specific Anchor vulnerability
+npm run test:signer-checks
 
-# Verbose output
-npm test -- --verbose
+# Test specific Pinocchio vulnerability
+npm run test:pinocchio:signer
+npm run test:pinocchio:owner
+npm run test:pinocchio:cpi
+npm run test:pinocchio:reinit
+npm run test:pinocchio:cosplay
+npm run test:pinocchio:pda
 ```
 
 ### Expected Test Output
@@ -145,6 +141,15 @@ Vulnerability: Signer Checks
 ## 📖 Documentation
 
 Comprehensive documentation with interactive examples, diagrams, and video walkthroughs is available in the `badger/docs/` directory.
+
+### Main Learning Resources
+
+- **[Solana Security Deep Dive](SOLANA_SECURITY_DEEP_DIVE.md)** - Complete comprehensive guide (15,000+ words)
+  - All 6 vulnerabilities explained in depth
+  - Real-world attack analysis (Cashio $52M exploit)
+  - Framework comparison and best practices
+  - Code pattern recognition guide
+  - Recommended learning paths
 
 ### Quick Links
 
@@ -173,16 +178,6 @@ npm install
 npm run dev
 # Visit http://localhost:3000
 ```
-
-## 🎥 Video Content
-
-Watch comprehensive video walkthroughs of each vulnerability:
-
-- **Main Course (30 min)** - Complete security guide covering all vulnerabilities
-- **Individual Topics (5-8 min each)** - Deep dives into specific vulnerabilities
-- **Framework Comparison (10 min)** - Anchor vs Pinocchio security analysis
-
-*Note: Video content is currently in production. Check the `media/videos/` directory for updates.*
 
 ## 🔑 Key Learnings
 
@@ -235,7 +230,7 @@ cd solana-security-reference
 git checkout -b feature/your-feature-name
 
 # Make changes and test
-./scripts/build-all.sh
+anchor build
 npm test
 
 # Commit and push
@@ -259,12 +254,14 @@ Built for **SuperteamNG Security Bounty**
 - ✅ **Both Anchor and Pinocchio frameworks** - Complete implementations for all vulnerabilities
 - ✅ **Comprehensive inline comments** - Every vulnerability and fix thoroughly explained
 - ✅ **Per-vulnerability READMEs** - Dedicated documentation for each security issue
-- ✅ **Build automation scripts** - Easy building and testing of all programs
 - ✅ **Project configuration** - package.json, tsconfig.json, .gitignore, LICENSE
-- ✅ **Test suite** - Automated exploit demonstrations for Anchor (28 passing tests)
-- 🚧 **Documentation site** - Mintlify-powered interactive docs (in progress)
-- 📹 **Video content** - Deep-dive walkthroughs (pending)
-- 🚧 **Framework comparison** - Detailed analysis pages (in progress)
+- ✅ **Test suite** - Automated exploit demonstrations
+  - 28 passing Anchor tests with comprehensive exploit narratives
+  - 18 passing Pinocchio tests using solana-bankrun
+  - **46 total tests** covering all vulnerabilities in both frameworks
+- ✅ **Deep-dive article** - Complete 15,000+ word security guide
+- ✅ **Documentation site** - Mintlify-powered interactive docs
+- ✅ **Framework comparison** - Detailed Anchor vs Pinocchio analysis
 
 ### Credits
 
@@ -289,8 +286,7 @@ Built for **SuperteamNG Security Bounty**
 **Beginners:**
 1. Start with [Signer Checks](programs/signer-checks/) - Most common vulnerability
 2. Move to [Owner Checks](programs/owner-checks/) - Related validation issue
-3. Watch vulnerability-specific videos for visual learning
-4. Run tests to see exploits in action
+3. Run tests to see exploits in action
 
 **Intermediate:**
 1. Study [Arbitrary CPI](programs/arbitrary-cpi/) - Cross-program attacks
@@ -320,7 +316,7 @@ Your feedback helps us improve the content and reach more developers.
 
 <div align="center">
 
-**[Get Started](#quick-start)** • **[View Examples](programs/)** • **[Read Docs](badger/docs/)** • **[Watch Videos](#video-content)**
+**[Get Started](#quick-start)** • **[View Examples](programs/)** • **[Read Docs](badger/docs/)**
 
 Built with ❤️ by the Solana developer community
 

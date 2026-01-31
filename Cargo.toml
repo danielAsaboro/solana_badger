@@ -12,6 +12,16 @@ members = [
     "programs/type-cosplay/secure/anchor",
     "programs/pda-sharing/vulnerable/anchor",
     "programs/pda-sharing/secure/anchor",
+    "programs/bump-seed-canonicalization/vulnerable/anchor",
+    "programs/bump-seed-canonicalization/secure/anchor",
+    "programs/integer-overflow/vulnerable/anchor",
+    "programs/integer-overflow/secure/anchor",
+    "programs/panic-handling/vulnerable/anchor",
+    "programs/panic-handling/secure/anchor",
+    "programs/closing-accounts/vulnerable/anchor",
+    "programs/closing-accounts/secure/anchor",
+    "programs/unsafe-rust/vulnerable/anchor",
+    "programs/unsafe-rust/secure/anchor",
 ]
 resolver = "2"
 

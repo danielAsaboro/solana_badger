@@ -65,3 +65,12 @@ badger/docs/.mint/
 *.bak
 resources/
 chats/
+video scripts/
+
+# Internal development files
+LLM_HANDOFF_PROMPT.md
+.claude/
+scripts/
+IMPLEMENTATION-COMPLETE.md
+SUBMISSION_SUMMARY.md
+TODO.md

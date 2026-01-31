@@ -1,5 +1,11 @@
 #![no_std]
 
+#[cfg(not(feature = "no-entrypoint"))]
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
+
 use pinocchio::{
     entrypoint,
     AccountView,

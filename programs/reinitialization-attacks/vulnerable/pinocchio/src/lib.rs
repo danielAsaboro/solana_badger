@@ -1,5 +1,11 @@
 #![no_std]
 
+#[cfg(not(feature = "no-entrypoint"))]
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
+
 use pinocchio::{
     entrypoint,
     AccountView,
@@ -55,10 +61,23 @@ pub fn process_instruction(
 /// - Bob gains control over Alice's vault
 ///
 /// ATTACK SCENARIO:
-/// 1. Victim initializes vault: [DISC=1][victim_key][balance=0]
-/// 2. Attacker calls unsafe_initialize with victim's vault account
-/// 3. Account becomes: [DISC=1][attacker_key][balance=0]
-/// 4. Attacker gained authority, victim lost control!
+/// 1. Alice initializes vault: [DISC=1][alice_key][balance=1000_SOL]
+/// 2. Bob (attacker) discovers Alice's vault address via PDA derivation
+///    - PDAs are DETERMINISTIC and publicly derivable!
+///    - Vault PDA: derived from [b"vault", alice_pubkey]
+///    - Bob computes: find_program_address([b"vault", alice_pubkey], program_id)
+///    - Result: Bob knows Alice's vault address WITHOUT Alice's permission
+/// 3. Bob calls unsafe_initialize on Alice's vault account with Bob as authority
+/// 4. Account becomes: [DISC=1][bob_key][balance=0] - authority overwritten!
+/// 5. Bob gains control, Alice loses her 1000 SOL!
+///
+/// HOW ATTACKERS FIND VICTIM VAULTS:
+/// PDAs are deterministic, so attackers can:
+/// - Scan blockchain for vault accounts owned by this program
+/// - For each vault, try deriving PDAs with common seed patterns
+/// - Match addresses to identify vault owners
+/// - Call unsafe_initialize on any vault to steal it
+/// - This makes the attack PRACTICAL, not just theoretical!
 fn unsafe_initialize(accounts: &[AccountView]) -> ProgramResult {
     let [authority_info, vault_info] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);

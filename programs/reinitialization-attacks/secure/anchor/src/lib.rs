@@ -23,6 +23,20 @@ pub mod secure_reinitialization_attacks {
     ///
     /// Attempting to call this on an already-initialized account will fail
     /// with an error, preventing authority theft.
+    ///
+    /// WHY THIS FIX WORKS:
+    /// Even though attackers can still derive victim vault PDAs (they're deterministic),
+    /// the `init` constraint prevents reinitialization:
+    /// - If vault already has non-zero discriminator → init fails
+    /// - Attacker cannot overwrite existing authority
+    /// - Victim's funds remain safe
+    ///
+    /// ATTACKER ATTEMPTS:
+    /// 1. Attacker derives Alice's vault PDA: [b"vault", alice_pubkey]
+    /// 2. Attacker calls initialize with attacker as authority
+    /// 3. Anchor checks: discriminator == 0? NO (already initialized)
+    /// 4. Transaction rejected with AlreadyInitialized error
+    /// 5. Alice's vault unchanged and secure
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         instructions::initialize(ctx)
     }
